@@ -82,6 +82,8 @@ public class SecurityConfig {
      * Codificador de senha usando delegação automática do Spring Security.
      * Suporta múltiplos formatos ({bcrypt}, {scrypt}, etc.) para compatibilidade.
      */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }
