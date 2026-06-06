@@ -43,7 +43,7 @@ class ProjectServiceTest {
 
     @Test
     void shouldCreateProjectWithEmployeeMembers() {
-        Member manager = member(1L, "Ana", "gerente");
+        Member manager = member(1L, "Ana", "funcionário");
         Member employee = member(2L, "João", "funcionário");
         ProjectCreateRequest request = new ProjectCreateRequest();
         request.setName("Projeto A");
@@ -56,7 +56,9 @@ class ProjectServiceTest {
 
         when(memberService.findById(1L)).thenReturn(manager);
         when(memberService.findById(2L)).thenReturn(employee);
+        when(memberService.isEmployee(manager)).thenReturn(true);
         when(memberService.isEmployee(employee)).thenReturn(true);
+        when(projectRepository.countActiveProjectsByMemberId(eq(1L), any())).thenReturn(0L);
         when(projectRepository.countActiveProjectsByMemberId(eq(2L), any())).thenReturn(0L);
         when(projectRepository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -69,7 +71,7 @@ class ProjectServiceTest {
 
     @Test
     void shouldRejectMemberThatIsNotEmployee() {
-        Member manager = member(1L, "Ana", "gerente");
+        Member manager = member(1L, "Ana", "funcionário");
         Member contractor = member(2L, "João", "terceiro");
         ProjectCreateRequest request = new ProjectCreateRequest();
         request.setName("Projeto A");
@@ -81,7 +83,9 @@ class ProjectServiceTest {
 
         when(memberService.findById(1L)).thenReturn(manager);
         when(memberService.findById(2L)).thenReturn(contractor);
+        when(memberService.isEmployee(manager)).thenReturn(true);
         when(memberService.isEmployee(contractor)).thenReturn(false);
+        when(projectRepository.countActiveProjectsByMemberId(eq(1L), any())).thenReturn(0L);
 
         assertThrows(BusinessRuleException.class, () -> projectService.create(request));
     }
@@ -106,7 +110,7 @@ class ProjectServiceTest {
 
     @Test
     void shouldRejectWhenMemberAlreadyHasThreeActiveProjects() {
-        Member manager = member(1L, "Ana", "gerente");
+        Member manager = member(1L, "Ana", "funcionário");
         Member employee = member(2L, "João", "funcionário");
         ProjectCreateRequest request = new ProjectCreateRequest();
         request.setName("Projeto A");
@@ -118,8 +122,69 @@ class ProjectServiceTest {
 
         when(memberService.findById(1L)).thenReturn(manager);
         when(memberService.findById(2L)).thenReturn(employee);
+        when(memberService.isEmployee(manager)).thenReturn(true);
         when(memberService.isEmployee(employee)).thenReturn(true);
+        when(projectRepository.countActiveProjectsByMemberId(eq(1L), any())).thenReturn(0L);
         when(projectRepository.countActiveProjectsByMemberId(eq(2L), any())).thenReturn(3L);
+
+        assertThrows(BusinessRuleException.class, () -> projectService.create(request));
+    }
+
+    @Test
+    void shouldCountManagerAndMemberParticipationTogetherWhenRejectingFourthActiveProject() {
+        Member manager = member(1L, "Ana", "funcionário");
+        Member employee = member(2L, "João", "funcionário");
+        ProjectCreateRequest request = new ProjectCreateRequest();
+        request.setName("Projeto A");
+        request.setStartDate(LocalDate.of(2026, 1, 1));
+        request.setPlannedEndDate(LocalDate.of(2026, 3, 1));
+        request.setBudget(new BigDecimal("50000"));
+        request.setManagerId(1L);
+        request.setMemberIds(Collections.singletonList(2L));
+
+        when(memberService.findById(1L)).thenReturn(manager);
+        when(memberService.findById(2L)).thenReturn(employee);
+        when(memberService.isEmployee(manager)).thenReturn(true);
+        when(memberService.isEmployee(employee)).thenReturn(true);
+        when(projectRepository.countActiveProjectsByMemberId(eq(1L), any())).thenReturn(0L);
+        when(projectRepository.countActiveProjectsByMemberId(eq(2L), any())).thenReturn(3L);
+
+        assertThrows(BusinessRuleException.class, () -> projectService.create(request));
+    }
+
+    @Test
+    void shouldRejectManagerThatIsNotEmployee() {
+        Member manager = member(1L, "Ana", "gerente");
+        Member employee = member(2L, "João", "funcionário");
+        ProjectCreateRequest request = new ProjectCreateRequest();
+        request.setName("Projeto A");
+        request.setStartDate(LocalDate.of(2026, 1, 1));
+        request.setPlannedEndDate(LocalDate.of(2026, 3, 1));
+        request.setBudget(new BigDecimal("50000"));
+        request.setManagerId(1L);
+        request.setMemberIds(Collections.singletonList(2L));
+
+        when(memberService.findById(1L)).thenReturn(manager);
+        when(memberService.isEmployee(manager)).thenReturn(false);
+
+        assertThrows(BusinessRuleException.class, () -> projectService.create(request));
+    }
+
+    @Test
+    void shouldRejectWhenManagerAlreadyHasThreeActiveProjects() {
+        Member manager = member(1L, "Ana", "funcionário");
+        Member employee = member(2L, "João", "funcionário");
+        ProjectCreateRequest request = new ProjectCreateRequest();
+        request.setName("Projeto A");
+        request.setStartDate(LocalDate.of(2026, 1, 1));
+        request.setPlannedEndDate(LocalDate.of(2026, 3, 1));
+        request.setBudget(new BigDecimal("50000"));
+        request.setManagerId(1L);
+        request.setMemberIds(Collections.singletonList(2L));
+
+        when(memberService.findById(1L)).thenReturn(manager);
+        when(memberService.isEmployee(manager)).thenReturn(true);
+        when(projectRepository.countActiveProjectsByMemberId(eq(1L), any())).thenReturn(3L);
 
         assertThrows(BusinessRuleException.class, () -> projectService.create(request));
     }

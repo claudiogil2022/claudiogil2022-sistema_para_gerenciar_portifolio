@@ -3,6 +3,7 @@ package com.portfolio.manager.dto.project;
 import com.portfolio.manager.domain.ProjectStatus;
 import com.portfolio.manager.domain.RiskLevel;
 import com.portfolio.manager.dto.member.MemberResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,6 +21,7 @@ public class ProjectResponse {
     private String description;
     private MemberResponse manager;
     private ProjectStatus status;
+    @Schema(description = "Classificação de risco do projeto. Valores: BAIXO, MEDIO, ALTO.")
     private RiskLevel riskLevel;
     private List<MemberResponse> members = new ArrayList<MemberResponse>();
 

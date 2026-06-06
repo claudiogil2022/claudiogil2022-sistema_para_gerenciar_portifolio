@@ -8,13 +8,14 @@ import com.portfolio.manager.domain.RiskLevel;
 import com.portfolio.manager.dto.project.ProjectCreateRequest;
 import com.portfolio.manager.dto.project.ProjectMembersUpdateRequest;
 import com.portfolio.manager.dto.project.ProjectFilterRequest;
+import com.portfolio.manager.dto.project.ProjectResponse;
 import com.portfolio.manager.dto.project.ProjectStatusUpdateRequest;
 import com.portfolio.manager.dto.project.ProjectUpdateRequest;
 import com.portfolio.manager.exception.BusinessRuleException;
 import com.portfolio.manager.exception.NotFoundException;
+import com.portfolio.manager.mapper.ProjectMapper;
 import com.portfolio.manager.repository.ProjectRepository;
 import com.portfolio.manager.repository.ProjectSpecifications;
-import com.portfolio.manager.service.ProjectRiskService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -82,15 +83,24 @@ public class ProjectService {
         project.setBudget(request.getBudget());
         project.setDescription(request.getDescription());
         project.setStatus(ProjectStatus.EM_ANALISE);
-        project.setManager(memberService.findById(request.getManagerId()));
+        project.setManager(resolveAndValidateManager(request.getManagerId(), null));
         project.setMembers(loadAndValidateMembers(request.getMemberIds(), null));
         return projectRepository.save(project);
+    }
+
+    public ProjectResponse createResponse(ProjectCreateRequest request) {
+        return ProjectMapper.toResponse(create(request));
     }
 
     @Transactional(readOnly = true)
     public Project findById(Long id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Projeto não encontrado: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectResponse findResponseById(Long id) {
+        return ProjectMapper.toResponse(findById(id));
     }
 
     public Project update(Long id, ProjectUpdateRequest request) {
@@ -102,17 +112,25 @@ public class ProjectService {
         project.setRealEndDate(request.getRealEndDate());
         project.setBudget(request.getBudget());
         project.setDescription(request.getDescription());
-        project.setManager(memberService.findById(request.getManagerId()));
+        project.setManager(resolveAndValidateManager(request.getManagerId(), project.getId()));
         if (request.getMemberIds() != null) {
             project.setMembers(loadAndValidateMembers(request.getMemberIds(), project.getId()));
         }
         return projectRepository.save(project);
     }
 
+    public ProjectResponse updateResponse(Long id, ProjectUpdateRequest request) {
+        return ProjectMapper.toResponse(update(id, request));
+    }
+
     public Project updateMembers(Long id, ProjectMembersUpdateRequest request) {
         Project project = findById(id);
         project.setMembers(loadAndValidateMembers(request.getMemberIds(), project.getId()));
         return projectRepository.save(project);
+    }
+
+    public ProjectResponse updateMembersResponse(Long id, ProjectMembersUpdateRequest request) {
+        return ProjectMapper.toResponse(updateMembers(id, request));
     }
 
     public void delete(Long id) {
@@ -148,6 +166,10 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    public ProjectResponse changeStatusResponse(Long id, ProjectStatusUpdateRequest request) {
+        return ProjectMapper.toResponse(changeStatus(id, request));
+    }
+
     @Transactional(readOnly = true)
     public Page<Project> search(ProjectFilterRequest filter, Pageable pageable) {
         Specification<Project> specification = Specification
@@ -166,14 +188,19 @@ public class ProjectService {
             return page;
         }
 
-        List<Project> filtered = new ArrayList<Project>();
+        List<Project> filtered = new ArrayList<>();
         for (Project project : page.getContent()) {
             RiskLevel riskLevel = ProjectRiskService.calculateRisk(project.getBudget(), project.getStartDate(), project.getPlannedEndDate());
             if (filter.getRiskLevel().equals(riskLevel)) {
                 filtered.add(project);
             }
         }
-        return new PageImpl<Project>(filtered, pageable, filtered.size());
+        return new PageImpl<>(filtered, pageable, filtered.size());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProjectResponse> searchResponse(ProjectFilterRequest filter, Pageable pageable) {
+        return search(filter, pageable).map(ProjectMapper::toResponse);
     }
 
     private Set<Member> loadAndValidateMembers(List<Long> memberIds, Long projectId) {
@@ -182,15 +209,15 @@ public class ProjectService {
         }
         
         // Elimina duplicatas usando Set para evitar alocações múltiplas do mesmo membro
-        Set<Long> uniqueIds = new HashSet<Long>(memberIds);
-        if (uniqueIds.size() < MIN_MEMBERS) {
+        Set<Long> uniqueIds = new HashSet<>(memberIds);
+        if (uniqueIds.isEmpty()) {
             throw new BusinessRuleException("O projeto deve possuir no mínimo 1 membro");
         }
         if (uniqueIds.size() > MAX_MEMBERS) {
             throw new BusinessRuleException("O projeto deve possuir no máximo 10 membros");
         }
 
-        Set<Member> members = new HashSet<Member>();
+        Set<Member> members = new HashSet<>();
         for (Long memberId : uniqueIds) {
             Member member = memberService.findById(memberId);
             
@@ -205,6 +232,15 @@ public class ProjectService {
             members.add(member);
         }
         return members;
+    }
+
+    private Member resolveAndValidateManager(Long managerId, Long projectId) {
+        Member manager = memberService.findById(managerId);
+        if (!memberService.isEmployee(manager)) {
+            throw new BusinessRuleException("O gerente responsável deve possuir atribuição funcionário");
+        }
+        validateMemberProjectLimit(managerId, projectId);
+        return manager;
     }
 
     /**

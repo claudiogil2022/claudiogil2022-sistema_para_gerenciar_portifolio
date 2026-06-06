@@ -13,19 +13,19 @@ class ProjectRiskServiceTest {
     @Test
     void shouldReturnLowRiskWhenBudgetAndDurationAreSmall() {
         RiskLevel riskLevel = ProjectRiskService.calculateRisk(new BigDecimal("100000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 1));
-        assertEquals(RiskLevel.LOW, riskLevel);
+        assertEquals(RiskLevel.BAIXO, riskLevel);
     }
 
     @Test
     void shouldReturnMediumRiskWhenBudgetOrDurationAreMedium() {
         RiskLevel riskLevel = ProjectRiskService.calculateRisk(new BigDecimal("250000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 1));
-        assertEquals(RiskLevel.MEDIUM, riskLevel);
+        assertEquals(RiskLevel.MEDIO, riskLevel);
     }
 
     @Test
     void shouldReturnHighRiskWhenBudgetOrDurationExceedsThreshold() {
         RiskLevel riskLevel = ProjectRiskService.calculateRisk(new BigDecimal("700000"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 1));
-        assertEquals(RiskLevel.HIGH, riskLevel);
+        assertEquals(RiskLevel.ALTO, riskLevel);
     }
 }
 

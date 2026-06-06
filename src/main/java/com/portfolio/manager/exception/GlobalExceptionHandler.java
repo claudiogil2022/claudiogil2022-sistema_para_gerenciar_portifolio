@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
@@ -30,6 +31,14 @@ public class GlobalExceptionHandler {
                 .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
                 .collect(Collectors.toList());
         return build(HttpStatus.BAD_REQUEST, String.join("; ", errors), request.getRequestURI());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+        String parameter = exception.getName();
+        String value = String.valueOf(exception.getValue());
+        String message = "Valor inválido para o parâmetro '" + parameter + "': '" + value + "'";
+        return build(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
